@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Apex Neural Search</title>
+    <style>
+        :root { --bg: #030712; --card: #111827; --accent: #3b82f6; --text: #f3f4f6; --dim: #6b7280; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Header */
+        header { padding: 20px; border-bottom: 1px solid #1f2937; display: flex; justify-content: space-between; align-items: center; background: rgba(3, 7, 18, 0.8); backdrop-filter: blur(10px); }
+        .logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -1px; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .status { font-size: 0.8rem; color: var(--dim); display: flex; gap: 10px; align-items: center; }
+        .dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e; }
+
+        /* Main Feed */
+        #feed { flex: 1; overflow-y: auto; padding: 20px 20px 100px 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        
+        /* Message Bubbles */
+        .message { margin-bottom: 30px; animation: slideUp 0.3s ease; }
+        .user-query { font-size: 1.5rem; font-weight: 600; margin-bottom: 15px; color: white; border-left: 4px solid var(--accent); padding-left: 15px; }
+        .meta-tag { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; font-weight: bold; }
+
+        /* Result Cards */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+        .card { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #1f2937; transition: all 0.2s; cursor: default; }
+        .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card-score { font-size: 0.8rem; color: #34d399; font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .card-body { font-size: 0.95rem; line-height: 1.5; color: #d1d5db; }
+        
+        /* Input Area */
+        .input-area { position: fixed; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(to top, var(--bg) 80%, transparent); display: flex; justify-content: center; }
+        .search-bar { width: 100%; max-width: 800px; position: relative; }
+        input { width: 100%; background: #1f2937; border: 1px solid #374151; padding: 18px 25px; padding-right: 120px; border-radius: 16px; color: white; font-size: 1rem; outline: none; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; transition: 0.2s; }
+        input:focus { border-color: var(--accent); background: #111827; }
+        button { position: absolute; right: 10px; top: 10px; bottom: 10px; padding: 0 20px; background: var(--accent); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        button:hover { filter: brightness(1.1); }
+        button:disabled { background: #374151; cursor: wait; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">APEX ENGINE</div>
+        <div class="status"><div class="dot"></div> SYSTEMS ONLINE</div>
+    </header>
+
+    <div id="feed">
+        <div style="text-align: center; margin-top: 100px; color: var(--dim);">
+            <p>Ready to index and search high-dimensional vectors.</p>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="search-bar">
+            <input type="text" id="query" placeholder="Ask Apex..." onkeydown="if(event.key==='Enter') doSearch()">
+            <button id="btn" onclick="doSearch()">SEARCH</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { pipeline } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.6.0';
+        let model = null;
+        const feed = document.getElementById('feed');
+        const btn = document.getElementById('btn');
+        const input = document.getElementById('query');
+
+        // Initial Load
+        (async () => {
+            btn.innerText = "LOADING AI...";
+            btn.disabled = true;
+            model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+            btn.innerText = "SEARCH";
+            btn.disabled = false;
+        })();
+
+        window.doSearch = async function() {
+            const text = input.value.trim();
+            if (!text || !model) return;
+
+            // Clear initial welcome message if present
+            if (feed.children.length === 1 && feed.children[0].style.textAlign === 'center') feed.innerHTML = '';
+
+            // 1. UI: Add User Query
+            input.value = '';
+            const startTime = performance.now();
+            
+            // 2. Logic: Embed & Fetch
+            btn.disabled = true;
+            btn.innerText = "PROCESSING...";
+            
+            try {
+                // Client-side embedding
+                const output = await model(text, { pooling: 'mean', normalize: true });
+                const vector = Array.from(output.data);
+
+                // Rust Backend Search
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ vector: vector, k: 4 })
+                });
+                const results = await response.json();
+                
+                // 3. Render Results
+                const totalTime = (performance.now() - startTime).toFixed(0);
+                
+                const resultHTML = results.map(([content, score]) => `
+                    <div class="card">
+                        <div class="card-score">
+                            <span>MATCH</span>
+                            <span>${(score * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="card-body">${content}</div>
+                    </div>
+                `).join('');
+
+                const messageBlock = document.createElement('div');
+                messageBlock.className = 'message';
+                messageBlock.innerHTML = `
+                    <div class="meta-tag">Query</div>
+                    <div class="user-query">${text}</div>
+                    <div class="meta-tag">Apex Results (${totalTime}ms)</div>
+                    <div class="grid">${resultHTML}</div>
+                `;
+                
+                feed.appendChild(messageBlock);
+                feed.scrollTop = feed.scrollHeight; // Auto scroll to bottom
+            } catch (e) {
+                alert("Error connecting to Apex Engine. Is the Rust server running?");
+            }
+
+            btn.disabled = false;
+            btn.innerText = "SEARCH";
+        }
+    </script>
+</body>
+</html>
