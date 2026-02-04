@@ -43,7 +43,14 @@ async fn search_vectors(data: web::Data<AppState>, query: web::Json<SearchQuery>
     let results = index.search(&query.vector, query.k);
     HttpResponse::Ok().json(results)
 }
-
+// NEW: Simple endpoint to get the count
+async fn get_stats(data: web::Data<AppState>) -> impl Responder {
+    let index = data.index.read().unwrap();
+    // In HNSW, the 'current_id' is effectively the count of items
+    let count = index.current_id;
+    
+    HttpResponse::Ok().json(serde_json::json!({ "count": count }))
+}
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // 1. Connect to Database
@@ -78,6 +85,7 @@ async fn main() -> std::io::Result<()> {
             }))
             .route("/add", web::post().to(add_vector))
             .route("/search", web::post().to(search_vectors))
+            .route("/stats", web::get().to(get_stats))
             .service(fs::Files::new("/", "./static").index_file("index.html"))
     })
     .bind(("127.0.0.1", 8080))?

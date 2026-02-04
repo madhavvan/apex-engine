@@ -46,7 +46,10 @@
 <body>
     <header>
         <div class="logo">APEX ENGINE</div>
-        <div class="status"><div class="dot"></div> SYSTEMS ONLINE</div>
+        <div class="status">
+            <div class="dot"></div> 
+            <span id="doc-count">0</span> DOCUMENTS INDEXED
+        </div>
     </header>
 
     <div id="feed">
@@ -109,14 +112,19 @@
                 // 3. Render Results
                 const totalTime = (performance.now() - startTime).toFixed(0);
                 
-                const resultHTML = results.map(([content, score]) => `
-                    <div class="card">
-                        <div class="card-score">
-                            <span>MATCH</span>
-                            <span>${(score * 100).toFixed(1)}%</span>
+                const resultHTML = results.map(([doc, score]) => `
+                    <a href="${doc.url}" target="_blank" style="text-decoration: none; color: inherit;">
+                        <div class="card">
+                            <div class="card-score">
+                                <span>MATCH</span>
+                                <span>${(score * 100).toFixed(1)}%</span>
+                            </div>
+                            <div class="card-body" style="font-weight: bold; color: #60a5fa; margin-bottom: 5px;">
+                                🔗 Open Source
+                            </div>
+                            <div class="card-body">${doc.content}</div>
                         </div>
-                        <div class="card-body">${content}</div>
-                    </div>
+                    </a>
                 `).join('');
 
                 const messageBlock = document.createElement('div');
@@ -137,6 +145,23 @@
             btn.disabled = false;
             btn.innerText = "SEARCH";
         }
+        // NEW: Live Stats Polling
+        async function updateStats() {
+            try {
+                const res = await fetch('/stats');
+                const data = await res.json();
+                
+                // Animate the number change
+                const counter = document.getElementById('doc-count');
+                counter.innerText = data.count.toLocaleString(); // Adds commas (e.g., 1,000)
+            } catch (e) {
+                console.error("Server offline");
+            }
+        }
+
+        // Check every 2 seconds
+        setInterval(updateStats, 2000);
+        updateStats(); // Run once immediately
     </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ pub struct Document {
     pub id: String,
     pub vector: Vec<f32>,
     pub content: String, 
+    pub url: String,
 }
 
 pub struct InMemoryIndex {
@@ -48,7 +49,7 @@ impl InMemoryIndex {
         self.current_id += 1;
     }
 
-    pub fn search(&self, query_vector: &[f32], top_k: usize) -> Vec<(String, f32)> {
+    pub fn search(&self, query_vector: &[f32], top_k: usize) -> Vec<(Document, f32)> {
         let raw_results = self.hnsw.search(query_vector, top_k, 30);
         
         let mut results = Vec::new();
@@ -57,7 +58,7 @@ impl InMemoryIndex {
             if let Some(doc) = self.data_map.get(&neighbor.d_id) {
                 // Convert distance to similarity
                 let similarity = 1.0 - neighbor.distance; 
-                results.push((doc.content.clone(), similarity));
+                results.push((doc.clone(), similarity));
             }
         }
         

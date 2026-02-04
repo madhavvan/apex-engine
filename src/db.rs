@@ -25,7 +25,8 @@ impl Database {
             CREATE TABLE IF NOT EXISTS documents (
                 id TEXT PRIMARY KEY,
                 vector BLOB NOT NULL,
-                content TEXT NOT NULL
+                content TEXT NOT NULL,
+                url TEXT NOT NULL
             );
             "#
         )
@@ -41,11 +42,12 @@ impl Database {
         let vector_json = serde_json::to_string(&doc.vector)?;
 
         sqlx::query(
-            "INSERT OR REPLACE INTO documents (id, vector, content) VALUES (?, ?, ?)"
+            "INSERT OR REPLACE INTO documents (id, vector, content, url) VALUES (?, ?, ?, ?)"
         )
         .bind(&doc.id)
         .bind(vector_json)
         .bind(&doc.content)
+        .bind(&doc.url)
         .execute(&self.pool)
         .await?;
 
@@ -54,7 +56,7 @@ impl Database {
 
     // 4. Load ALL Documents (Used on Startup)
     pub async fn get_all(&self) -> Result<Vec<Document>> {
-        let rows = sqlx::query("SELECT id, vector, content FROM documents")
+        let rows = sqlx::query("SELECT id, vector, content, url FROM documents")
             .fetch_all(&self.pool)
             .await?;
 
@@ -67,6 +69,7 @@ impl Database {
             docs.push(Document {
                 id: row.get("id"),
                 content: row.get("content"),
+                url: row.get("url"),
                 vector,
             });
         }
