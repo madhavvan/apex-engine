@@ -4,7 +4,7 @@ from sentence_transformers import SentenceTransformer
 import time
 
 # --- CONFIGURATION ---
-TARGET_URL = "https://en.wikipedia.org/wiki/Artificial_intelligence" # <--- Change this to scrape whatever you want!
+TARGET_URL = "https://en.wikipedia.org/wiki/Artificial_intelligence" 
 RUST_API_URL = "http://127.0.0.1:8080"
 
 print("1. Loading AI Model...")
